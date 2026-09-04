@@ -16,7 +16,9 @@ import {
   ListTodo,
   Smile,
   X,
-  CalendarRange
+  CalendarRange,
+  TrendingUp,
+  Award
 } from 'lucide-react';
 import { JournalInteraction, ReflectionMode } from '../types';
 import { getMoodBadgeStyle, formatSentiment } from '../lib/moodStyles';
@@ -28,6 +30,8 @@ interface HistorySidebarProps {
   onDeleteInteraction: (id: string) => Promise<void>;
   onNewReflection: () => void;
   onOpenWeeklyRetro?: () => void;
+  onOpenAnalytics?: () => void;
+  onOpenExecutiveReview?: () => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -39,6 +43,8 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   onDeleteInteraction,
   onNewReflection,
   onOpenWeeklyRetro,
+  onOpenAnalytics,
+  onOpenExecutiveReview,
   isOpen,
   onClose,
 }) => {
@@ -151,6 +157,38 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
           <span>New Reflection</span>
         </button>
 
+        {/* Feature 3: Longitudinal Mood & Trend Analytics Button */}
+        {onOpenAnalytics && (
+          <button
+            type="button"
+            id="btn-sidebar-analytics"
+            onClick={() => {
+              onOpenAnalytics();
+              onClose();
+            }}
+            className="w-full py-2 px-3 bg-[#1F2937] hover:bg-[#283548] border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 hover:text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Mood & Trend Analytics</span>
+          </button>
+        )}
+
+        {/* Feature 3: Executive Meta-Review Button */}
+        {onOpenExecutiveReview && (
+          <button
+            type="button"
+            id="btn-sidebar-executive-review"
+            onClick={() => {
+              onOpenExecutiveReview();
+              onClose();
+            }}
+            className="w-full py-2 px-3 bg-[#1F2937] hover:bg-[#283548] border border-purple-500/30 hover:border-purple-500/50 text-purple-300 hover:text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+          >
+            <Award className="w-3.5 h-3.5 text-purple-400" />
+            <span>Executive Meta-Review</span>
+          </button>
+        )}
+
         {/* Feature 2: Weekly Retrospective Button */}
         {onOpenWeeklyRetro && (
           <button
@@ -160,10 +198,10 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
               onOpenWeeklyRetro();
               onClose();
             }}
-            className="w-full py-2 px-3 bg-[#1F2937] hover:bg-[#283548] border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 hover:text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+            className="w-full py-2 px-3 bg-[#1F2937] hover:bg-[#283548] border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
           >
-            <CalendarRange className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Generate Weekly Retrospective</span>
+            <CalendarRange className="w-3.5 h-3.5 text-gray-400" />
+            <span>Weekly Retrospective</span>
           </button>
         )}
 

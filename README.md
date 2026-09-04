@@ -1,6 +1,6 @@
 # Gemini Reflection Journal
 
-A secure, full-stack cognitive reflection journal and conversational brainstorming companion powered by **Gemini 3.6 Flash** and **Cloud Firestore** with automated mood analytics, continuous sentiment scoring, weekly retrospective synthesis, and strict per-user data isolation.
+A secure, full-stack cognitive reflection journal and conversational brainstorming companion powered by **Gemini 3.6 Flash** and **Cloud Firestore** with automated mood analytics, longitudinal trend tracking, weekly executive meta-reviews, and strict per-user data isolation.
 
 Built for the **Google Cloud Run AI Challenge**.
 
@@ -9,11 +9,25 @@ Built for the **Google Cloud Run AI Challenge**.
 ## 🌟 Key Features & Architecture
 
 - **User Authentication**: Firebase Authentication with Federated Google Sign-In (no passwords stored or managed by application code).
-- **Per-User Isolated Database**: Cloud Firestore enforcing strict owner-bound rules under `/users/{userId}/interactions` and `/users/{userId}/retrospectives`.
-- **Gemini 3.6 Flash AI Engine**: Server-side proxy handling structured reflection generation, multi-turn follow-up dialogue, and multi-day retrospective synthesis.
+- **Per-User Isolated Database**: Cloud Firestore enforcing strict owner-bound rules under `/users/{userId}/interactions`, `/users/{userId}/entries`, `/users/{userId}/retrospectives`, and `/users/{userId}/meta_reviews`.
+- **Gemini 3.6 Flash AI Engine**: Server-side proxy handling structured reflection generation, multi-turn follow-up dialogue, weekly retrospective synthesis, and executive meta-reviews.
 - **Resilient Model Fallback Ladder**: Automated 4-stage error recovery matrix (`gemini-3.6-flash` &rarr; `gemini-3.1-flash-lite` &rarr; `gemini-flash-latest` &rarr; `gemini-3.7-flash`).
-- **Automated Mood & Sentiment Analytics**: Continuous sentiment scoring (`-1.0` to `+1.0`), categorical mood classification, and actionable cognitive reframes.
-- **Weekly Retrospective Synthesis**: 7-day historical aggregation synthesizing recurring themes, personal breakthroughs, and actionable goals with minimum-entry validation (< 2 entries guard) and milestone persistence.
+- **Metric Extraction (Gemini Structured Output)**: Automatic extraction of:
+  * `sentiment_score`: float (`-1.0` to `1.0`)
+  * `energy_level`: integer (`1` to `10`)
+  * `cognitive_friction`: float (`0.0` to `1.0`, representing mental stress/blockers)
+  * `primary_mood`: string
+  * Persisted on each entry document under `/users/{userId}/entries`.
+- **Temporal Dashboard (Recharts Multi-Axis Visualization)**:
+  * 7-day and 30-day temporal range filtering
+  * Multi-axis trend line charts displaying sentiment trajectory alongside energy level vs. cognitive friction correlation
+  * KPI summary cards: Average Sentiment, Peak Energy Day, and Friction Trend (rising / falling / stable)
+- **Weekly Executive Meta-Review**:
+  * Comprehensive AI analysis synthesizing 7 days of entries
+  * Pinpoints behavioral bottlenecks, cognitive loops, and productivity/wellbeing triggers
+  * Sunday executive summary with clear, high-leverage strategic priorities
+  * Persisted under `/users/{userId}/meta_reviews` with historic archive viewing
+- **Weekly Retrospective Synthesis**: 7-day historical aggregation synthesizing recurring themes, personal breakthroughs, and actionable goals with minimum-entry validation (< 2 entries guard).
 - **Indirect Prompt Injection Defense (OWASP LLM01)**: Untrusted input sanitization, control character stripping, defensive payload ingestion, and `<user_journal_content>` XML encapsulation.
 - **Zero Hardcoded Secrets**: Protected server-side proxy; the browser never receives or handles `GEMINI_API_KEY`.
 - **Payload Hygiene**: Strict undefined-value stripping (`stripUndefined`) and defensive null-safe payload parsing.
@@ -66,7 +80,7 @@ git push -u origin main
 
 ## 🔒 1. Cloud Firestore Security Rules
 
-Deploy the following security rules to enforce complete per-user data isolation:
+Deploy the following security rules to enforce complete per-user data isolation across all collections:
 
 ```javascript
 rules_version = '2';
@@ -80,7 +94,15 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
+      match /entries/{entryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       match /retrospectives/{retrospectiveId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /meta_reviews/{reviewId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
@@ -129,10 +151,12 @@ To run the application locally:
    ```
 
 2. **Configure environment variables**:
-   Create a `.env` file in the root directory:
+   Create a `.env` file in the root directory (based on `.env.example`):
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
+
+   > **Security Note:** The `.gitignore` file strictly excludes `.env`, `.env.*`, and `.env.local` to prevent accidental credential leakage to Git. Never commit real API keys or credentials.
 
 3. **Start the development server**:
    ```bash
@@ -193,9 +217,9 @@ Every user interaction that can be triggered in the application has a correspond
    - **Expected Result**: Firebase Google OAuth popup opens.
 2. **Complete Google Account Selection**:
    - **Expected Result**: Popup closes; application transitions to Private Dashboard within 1-2 seconds.
-   - **Verification**: Navbar displays user's Google avatar/initials, verified email, "User Data Isolated" badge, "Weekly Retrospective" button, and "New Reflection" button.
+   - **Verification**: Navbar displays user's Google avatar/initials, verified email, "User Data Isolated" badge, view tabs ("Journal" and "Analytics"), "Executive Review", and "New Reflection".
 
-### Test Case 3: Initial Journal Creation & Automated Mood Analytics
+### Test Case 3: Initial Journal Creation & Metric Extraction
 1. **Select Objective Mode**:
    - Click "Deep Reflection" (`#mode-reflection`) or "Action Items" (`#mode-action_items`).
    - **Expected Result**: Card highlights with indigo border and indicator.
@@ -206,9 +230,9 @@ Every user interaction that can be triggered in the application has a correspond
 4. **Submit Reflection**:
    - Click "Reflect with Gemini" (`#btn-generate-reflection`).
    - **Expected Result**: Button displays spinner with "Synthesizing via Gemini 3.6 Flash...".
-   - **Expected Result**: Gemini response returns structured reflection, detected mood (e.g. Grateful, Overwhelmed, Motivated), sentiment score (e.g. +0.75), and actionable cognitive reframe.
-   - **Expected Result**: The active workspace card displays the color-coded mood badge, numeric sentiment score, and the Actionable Cognitive Reframe box.
-   - **Expected Result**: Interaction document is persisted to Cloud Firestore under `/users/{userId}/interactions/{interactionId}`.
+   - **Expected Result**: Gemini response returns structured reflection, detected mood (e.g. Grateful, Overwhelmed, Motivated), sentiment score (e.g. +0.75), energy level (e.g. 8/10), cognitive friction (e.g. 0.25), and actionable cognitive reframe.
+   - **Expected Result**: Workspace card renders numeric metric indicators (Energy 8/10, Friction 25%, Sentiment Score +0.75).
+   - **Expected Result**: Interaction document is persisted to Cloud Firestore under `/users/{userId}/interactions/{interactionId}` AND mirrored to `/users/{userId}/entries/{entryId}` for longitudinal analysis.
 
 ### Test Case 4: Multi-Turn Conversation Thread
 1. **Submit Follow-Up Question**:
@@ -220,7 +244,7 @@ Every user interaction that can be triggered in the application has a correspond
 
 ### Test Case 5: Weekly Retrospective Synthesis (< 2 Entries Guard)
 1. **Pre-condition**: Sign in with an account having 0 or 1 reflection in the past 7 days.
-2. **Action**: Click the **"Weekly Retrospective"** button in either the top navigation bar (`#btn-weekly-retro`) or the history sidebar (`#btn-sidebar-weekly-retro`).
+2. **Action**: Click the **"Retrospective"** button in either the top navigation bar (`#btn-weekly-retro`) or the history sidebar (`#btn-sidebar-weekly-retro`).
 3. **Expected Result**:
    - Modal opens displaying the minimum entry guard alert (*"More Reflections Needed for Synthesis"*).
    - Counter accurately displays `0 / 2 required` or `1 / 2 required`.
@@ -228,7 +252,7 @@ Every user interaction that can be triggered in the application has a correspond
 
 ### Test Case 6: Weekly Retrospective Synthesis & Milestone Persistence (>= 2 Entries)
 1. **Pre-condition**: Account has 2 or more journal entries written in the past 7 days.
-2. **Action**: Click **"Weekly Retrospective"** in the top navigation bar or history sidebar.
+2. **Action**: Click **"Retrospective"** in the top navigation bar or history sidebar.
 3. **Expected Result**:
    - Modal retrieves the user's 7-day entries and shows loading state with model attribution.
    - Synthesized retrospective renders:
@@ -240,7 +264,43 @@ Every user interaction that can be triggered in the application has a correspond
    - Retrospective document is persisted to `/users/{userId}/retrospectives`.
    - Button updates to confirmed state and appears in the **"Saved Milestones"** tab.
 
-### Test Case 7: History Navigation & Search Filtering
+### Test Case 7: Longitudinal Mood & Trend Analytics Dashboard (Recharts)
+1. **Navigate to Analytics**:
+   - Click **"Analytics"** in the top navigation bar (`#btn-nav-analytics`) or in the sidebar (`#btn-sidebar-analytics`).
+   - **Expected Result**: Workspace transitions to the Longitudinal Mood & Trend Analytics dashboard.
+2. **Verify KPI Summary Cards**:
+   - Check the 3 KPI cards:
+     * **Average Sentiment**: e.g., `+0.42` with visual trajectory status
+     * **Peak Energy Day**: e.g., `Friday` with average score
+     * **Friction Trend**: `Rising`, `Falling`, or `Stable` indicator with percentage
+3. **Inspect Interactive Recharts Visualization**:
+   - **Multi-Axis Trend Line Chart**:
+     * Left Y-axis: Sentiment Score (`-1.0` to `+1.0`)
+     * Right Y-axis: Energy & Friction (`0` to `10`)
+     * Colored trend lines: Sentiment (Emerald), Energy Level (Amber), Cognitive Friction (Rose)
+   - Hover over chart data points to see tooltips with exact numeric metrics and primary mood labels.
+4. **Test Time Range Toggling**:
+   - Click **"7 Days"** (`#btn-range-7d`) or **"30 Days"** (`#btn-range-30d`).
+   - **Expected Result**: Data re-aggregates immediately for the selected period, updating charts and summary KPIs.
+5. **Inspect Longitudinal History Log**:
+   - Scroll to the chronological entry breakdown at the bottom of the dashboard.
+   - Verify each record lists its timestamp, primary mood, sentiment, energy, and friction gauges.
+
+### Test Case 8: Weekly Executive Meta-Review Generation
+1. **Open Executive Meta-Review Modal**:
+   - In the Analytics dashboard, click **"Generate Weekly Executive Meta-Review"** (`#btn-generate-meta-review`), or in the top navigation click **"Executive Review"** (`#btn-nav-executive-review`).
+2. **Generate Synthesis**:
+   - If generating for the past 7 days, the modal contacts `/api/gemini/executive-meta-review`.
+   - **Expected Result**: Gemini evaluates longitudinal patterns and returns an Executive Briefing:
+     * **Sunday Executive Synthesis**: High-level narrative summary of cognitive and emotional states
+     * **Strategic Priorities**: 3-5 high-leverage focus items for the upcoming week
+     * **Behavioral Bottlenecks & Cognitive Loops**: Root cause friction points
+     * **Productivity & Wellbeing Triggers**: Contextual conditions that peaked energy or satisfaction
+3. **Persist & Archive**:
+   - Review is saved to `/users/{userId}/meta_reviews`.
+   - Switch between **"Current Executive Briefing"** and **"Historic Archive"** tabs to view past meta-reviews.
+
+### Test Case 9: History Navigation & Search Filtering
 1. **Inspect History Sidebar**:
    - **Expected Result**: Reflections are listed with titles, color-coded mood badges, sentiment indicators, and turn counts.
 2. **Test Search Filter**:
@@ -250,7 +310,7 @@ Every user interaction that can be triggered in the application has a correspond
    - Click another reflection from history.
    - **Expected Result**: Workspace loads that reflection's original prompt, full turn history, and allows continuing the multi-turn chat.
 
-### Test Case 8: Mood Dropdown Filtering in Sidebar
+### Test Case 10: Mood Dropdown Filtering in Sidebar
 1. **Click Mood Filter Dropdown (`#select-filter-mood`)**:
    - Select a specific mood (e.g., "Grateful", "Overwhelmed", or "Motivated").
    - **Expected Result**: The sidebar dynamically updates to show only entries tagged with the chosen mood, with matching entry counts displayed in the dropdown options.
@@ -258,7 +318,7 @@ Every user interaction that can be triggered in the application has a correspond
    - Select "All Moods".
    - **Expected Result**: Full list of user interactions re-appears.
 
-### Test Case 9: Deletion & Sign Out
+### Test Case 11: Deletion & Sign Out
 1. **Click Delete Icon on an Entry**:
    - Confirm browser prompt.
    - **Expected Result**: Interaction document is deleted from Firestore, disappears from the sidebar, and editor resets cleanly.
@@ -274,7 +334,7 @@ Every user interaction that can be triggered in the application has a correspond
 | **Input Surfaces** | Malicious prompt injection in journal entries | Untrusted input attempting system directive overrides | Strict schema validation, sanitization helper (`sanitizeJournalInput`), length capping, and `<user_journal_content>` XML boundary tagging. |
 | **Planning & Reasoning** | System instruction bypass | Prompt injection instructing model to ignore constraints | System prompt mandates strict JSON schema enforcement (`responseMimeType: 'application/json'`), regex parsing fallbacks, and multi-model fallback ladder (`gemini-3.6-flash` &rarr; `gemini-3.1-flash-lite` &rarr; `gemini-flash-latest` &rarr; `gemini-3.7-flash`). |
 | **Tool Execution** | Server crash or unhandled exceptions from malformed requests | Malformed JSON payload crashing Node process | Top-level body parser deserialization, null-safe payload extraction (`(req.body && typeof req.body === 'object')`), and explicit error status codes. |
-| **Memory & State** | Cross-user data leakage in Firestore | Malicious actor attempting to read or overwrite another user's entries or retrospectives | Firestore rules mandate strictly isolated user paths: `/users/{userId}/interactions/{id}` and `/users/{userId}/retrospectives/{id}` with `allow read, write: if request.auth != null && request.auth.uid == userId`. Payload sanitization strips all `undefined` values before persistence. |
+| **Memory & State** | Cross-user data leakage in Firestore | Malicious actor attempting to read or overwrite another user's entries, retrospectives, or meta-reviews | Firestore rules mandate strictly isolated user paths: `/users/{userId}/interactions/{id}`, `/users/{userId}/entries/{id}`, `/users/{userId}/retrospectives/{id}`, and `/users/{userId}/meta_reviews/{id}` with `allow read, write: if request.auth != null && request.auth.uid == userId`. Payload sanitization strips all `undefined` values before persistence. |
 | **Inter-System Communication** | Gemini API key exposure | API key leaked in client-side code | Gemini API calls are strictly handled on the backend Express route `/api/gemini/*` using `process.env.GEMINI_API_KEY`. No secret keys are exposed to the client. |
 
 ---
@@ -282,4 +342,5 @@ Every user interaction that can be triggered in the application has a correspond
 ## 📄 License
 
 MIT License. Designed and developed for the Google Cloud Run AI Challenge.
+
 

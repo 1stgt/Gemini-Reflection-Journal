@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   Clock,
   ChevronDown,
-  CalendarRange
+  CalendarRange,
+  Zap,
+  Activity
 } from 'lucide-react';
 import { AuthUser, JournalInteraction, JournalTurn, ReflectionMode } from '../types';
 import { saveInteraction, updateInteraction } from '../lib/firestoreService';
@@ -130,6 +132,9 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
       const modelOutput = data.reflection || data.text || '';
       const detectedMood = data.mood || selectedMood || 'Reflective';
       const sentimentScore = typeof data.sentiment_score === 'number' ? data.sentiment_score : 0.0;
+      const energyLevel = typeof data.energy_level === 'number' ? data.energy_level : 6;
+      const cognitiveFriction = typeof data.cognitive_friction === 'number' ? data.cognitive_friction : 0.3;
+      const primaryMood = data.primary_mood || detectedMood;
       const actionableReframe = data.actionable_reframe || '';
       const modelUsed = data.modelUsed || 'gemini-3.6-flash';
       setActiveModel(modelUsed);
@@ -165,7 +170,10 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
         initialGeminiResponse: modelOutput,
         initialModelUsed: modelUsed,
         mood: detectedMood,
+        primary_mood: primaryMood,
         sentiment_score: sentimentScore,
+        energy_level: energyLevel,
+        cognitive_friction: cognitiveFriction,
         actionable_reframe: actionableReframe,
         turns: initialTurns,
         createdAt: now,
@@ -563,6 +571,26 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                       </span>
                     );
                   })()}
+
+                  {/* Longitudinal Energy Level */}
+                  {typeof activeInteraction?.energy_level === 'number' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-950/30 text-amber-300 border border-amber-800/40">
+                      <Zap className="w-3 h-3 text-amber-400" />
+                      <span className="text-gray-400">Energy:</span>
+                      <span className="font-semibold text-amber-300">{activeInteraction.energy_level}/10</span>
+                    </span>
+                  )}
+
+                  {/* Longitudinal Cognitive Friction */}
+                  {typeof activeInteraction?.cognitive_friction === 'number' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-purple-950/30 text-purple-300 border border-purple-800/40">
+                      <Activity className="w-3 h-3 text-purple-400" />
+                      <span className="text-gray-400">Friction:</span>
+                      <span className="font-semibold text-purple-300">
+                        {Math.round(activeInteraction.cognitive_friction * 100)}%
+                      </span>
+                    </span>
+                  )}
                 </div>
 
                 <span className="text-[11px] text-gray-500 flex items-center gap-1">

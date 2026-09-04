@@ -12,6 +12,8 @@ import { LandingPage } from './components/LandingPage';
 import { JournalEditor } from './components/JournalEditor';
 import { HistorySidebar } from './components/HistorySidebar';
 import { WeeklyRetrospectiveModal } from './components/WeeklyRetrospectiveModal';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { ExecutiveMetaReviewModal } from './components/ExecutiveMetaReviewModal';
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 export default function App() {
@@ -19,11 +21,15 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // View Mode: 'journal' or 'analytics'
+  const [activeView, setActiveView] = useState<'journal' | 'analytics'>('journal');
+
   // Firestore Interactions State
   const [interactions, setInteractions] = useState<JournalInteraction[]>([]);
   const [activeInteractionId, setActiveInteractionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isWeeklyRetroOpen, setIsWeeklyRetroOpen] = useState(false);
+  const [isExecutiveReviewOpen, setIsExecutiveReviewOpen] = useState(false);
 
   // Observe Firebase Auth State
   useEffect(() => {
@@ -99,6 +105,7 @@ export default function App() {
   };
 
   const handleSelectInteraction = (interaction: JournalInteraction) => {
+    setActiveView('journal');
     setActiveInteractionId(interaction.id);
   };
 
@@ -138,8 +145,14 @@ export default function App() {
       <Navbar
         user={user}
         onSignOut={handleSignOut}
-        onNewEntry={handleNewEntryRequest}
+        onNewEntry={() => {
+          setActiveView('journal');
+          handleNewEntryRequest();
+        }}
         onOpenWeeklyRetro={() => setIsWeeklyRetroOpen(true)}
+        onOpenExecutiveReview={() => setIsExecutiveReviewOpen(true)}
+        activeView={activeView}
+        onSelectView={setActiveView}
         isEditorActive={Boolean(activeInteractionId)}
       />
 
@@ -171,21 +184,37 @@ export default function App() {
             activeInteractionId={activeInteractionId}
             onSelectInteraction={handleSelectInteraction}
             onDeleteInteraction={handleDeleteInteraction}
-            onNewReflection={handleNewEntryRequest}
+            onNewReflection={() => {
+              setActiveView('journal');
+              handleNewEntryRequest();
+            }}
             onOpenWeeklyRetro={() => setIsWeeklyRetroOpen(true)}
+            onOpenAnalytics={() => setActiveView('analytics')}
+            onOpenExecutiveReview={() => setIsExecutiveReviewOpen(true)}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
           />
 
-          {/* Reflection Workspace */}
+          {/* Main Content Workspace: Journal Editor or Analytics Dashboard */}
           <main className="flex-1 flex flex-col min-w-0 bg-[#0F1115]">
-            <JournalEditor
-              user={user}
-              activeInteraction={activeInteraction}
-              onInteractionSaved={handleInteractionSaved}
-              onNewEntryRequest={handleNewEntryRequest}
-              onOpenWeeklyRetro={() => setIsWeeklyRetroOpen(true)}
-            />
+            {activeView === 'analytics' ? (
+              <AnalyticsDashboard
+                user={user}
+                onOpenExecutiveReview={() => setIsExecutiveReviewOpen(true)}
+                onNewReflection={() => {
+                  setActiveView('journal');
+                  handleNewEntryRequest();
+                }}
+              />
+            ) : (
+              <JournalEditor
+                user={user}
+                activeInteraction={activeInteraction}
+                onInteractionSaved={handleInteractionSaved}
+                onNewEntryRequest={handleNewEntryRequest}
+                onOpenWeeklyRetro={() => setIsWeeklyRetroOpen(true)}
+              />
+            )}
           </main>
 
           {/* Feature 2: Weekly Retrospective Modal */}
@@ -195,6 +224,19 @@ export default function App() {
             user={user}
             onNewReflectionRequest={() => {
               setIsWeeklyRetroOpen(false);
+              setActiveView('journal');
+              handleNewEntryRequest();
+            }}
+          />
+
+          {/* Feature 3: Weekly Executive Meta-Review Modal */}
+          <ExecutiveMetaReviewModal
+            isOpen={isExecutiveReviewOpen}
+            onClose={() => setIsExecutiveReviewOpen(false)}
+            user={user}
+            onNewReflectionRequest={() => {
+              setIsExecutiveReviewOpen(false);
+              setActiveView('journal');
               handleNewEntryRequest();
             }}
           />
