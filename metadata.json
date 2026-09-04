@@ -1,0 +1,6 @@
+{
+  "name": "Gemini Reflection Journal",
+  "description": "A secure, user-authenticated reflection journal powered by Gemini 3.6 Flash and Cloud Firestore with automated mood analytics, sentiment scoring, cognitive reframing, and per-user data isolation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
